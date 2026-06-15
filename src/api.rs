@@ -100,10 +100,11 @@ pub async fn create_recording(
         .send()
         .await?;
 
-    let fallback = (response.status().as_u16() == 413)
+    let legacy_fallback = (response.status().as_u16() == 413)
         .then(|| "The recording exceeds the server-configured size limit".to_owned());
 
-    let response = handle_response_status(response, fallback).await?;
+    let server_hostname = server_url.host().unwrap().to_string();
+    let response = handle_response_status(response, &server_hostname, legacy_fallback).await?;
 
     Ok(response.json::<RecordingResponse>().await?)
 }
@@ -235,24 +236,22 @@ async fn parse_stream_response<T: DeserializeOwned>(
     response: Response,
     server_url: &Url,
 ) -> Result<T> {
-    let server_hostname = server_url.host().unwrap();
+    let server_hostname = server_url.host().unwrap().to_string();
 
-    let fallback = match response.status().as_u16() {
-        401 => Some(format!(
-            "this CLI hasn't been authenticated with {server_hostname} - run `asciinema auth` first"
-        )),
+    let legacy_fallback = match response.status().as_u16() {
         404 | 422 => Some(format!("{server_hostname} doesn't support streaming")),
         _ => None,
     };
 
-    let response = handle_response_status(response, fallback).await?;
+    let response = handle_response_status(response, &server_hostname, legacy_fallback).await?;
 
     response.json::<T>().await.map_err(|e| e.into())
 }
 
 async fn handle_response_status(
     response: Response,
-    fallback_message: Option<String>,
+    server_hostname: &str,
+    legacy_fallback: Option<String>,
 ) -> Result<Response> {
     let status_error = match response.error_for_status_ref() {
         Ok(_) => return Ok(response),
@@ -260,21 +259,43 @@ async fn handle_response_status(
     };
 
     let message = match response.bytes().await {
-        Ok(body) => parse_error_message(&body),
+        Ok(body) => parse_error_response(&body)
+            .and_then(|response| render_error_response(response, server_hostname)),
         Err(_) => None,
     };
 
-    if let Some(message) = message.or(fallback_message) {
+    if let Some(message) = message.or(legacy_fallback) {
         bail!(message);
     }
 
     Err(status_error.into())
 }
 
-fn parse_error_message(body: &[u8]) -> Option<String> {
-    serde_json::from_slice::<ErrorResponse>(body)
-        .ok()
-        .and_then(format_error_response)
+fn parse_error_response(body: &[u8]) -> Option<ErrorResponse> {
+    serde_json::from_slice(body).ok()
+}
+
+fn render_error_response(response: ErrorResponse, server_hostname: &str) -> Option<String> {
+    let guidance = match response.error_type.as_deref() {
+        Some("account_required") => Some(format!(
+            "Run `asciinema auth` to link this CLI to your {server_hostname} account."
+        )),
+
+        Some("upload_limit_reached") => {
+            Some("Run `asciinema auth` and follow the link to upload more.".to_owned())
+        }
+
+        _ => None,
+    };
+
+    let mut message = format_error_response(response)?;
+
+    if let Some(guidance) = guidance {
+        message.push_str("\n\n");
+        message.push_str(&guidance);
+    }
+
+    Some(message)
 }
 
 fn format_error_response(response: ErrorResponse) -> Option<String> {
@@ -345,7 +366,11 @@ mod tests {
     use axum::http::{Response as HttpResponse, StatusCode};
     use tokio::runtime::Runtime;
 
-    use super::{handle_response_status, parse_error_message};
+    use super::{
+        format_error_response, handle_response_status, parse_error_response, render_error_response,
+    };
+
+    const SERVER_HOSTNAME: &str = "example.com";
 
     fn response(status: StatusCode, body: &'static str) -> reqwest::Response {
         HttpResponse::builder()
@@ -355,27 +380,88 @@ mod tests {
             .into()
     }
 
+    fn parse_error_message(body: &[u8]) -> Option<String> {
+        parse_error_response(body).and_then(format_error_response)
+    }
+
+    fn render_error_message(body: &[u8]) -> Option<String> {
+        parse_error_response(body)
+            .and_then(|response| render_error_response(response, SERVER_HOSTNAME))
+    }
+
     #[test]
-    fn surfaces_error_message() {
+    fn augments_account_required_error() {
+        let body = br#"{
+            "type": "account_required",
+            "message": "This action requires an account"
+        }"#;
+
+        assert_eq!(
+            render_error_message(body),
+            Some(
+                "This action requires an account\n\n\
+                 Run `asciinema auth` to link this CLI to your example.com account."
+                    .to_owned()
+            )
+        );
+    }
+
+    #[test]
+    fn augments_upload_limit_reached_error() {
         let body = br#"{
             "type": "upload_limit_reached",
             "message": "Anonymous upload limit reached"
         }"#;
 
         assert_eq!(
-            parse_error_message(body),
-            Some("Anonymous upload limit reached".to_owned())
+            render_error_message(body),
+            Some(
+                "Anonymous upload limit reached\n\n\
+                 Run `asciinema auth` and follow the link to upload more."
+                    .to_owned()
+            )
         );
 
         let error = Runtime::new()
             .unwrap()
             .block_on(handle_response_status(
                 response(StatusCode::FORBIDDEN, std::str::from_utf8(body).unwrap()),
+                SERVER_HOSTNAME,
                 None,
             ))
             .unwrap_err();
 
-        assert_eq!(error.to_string(), "Anonymous upload limit reached");
+        assert_eq!(
+            error.to_string(),
+            "Anonymous upload limit reached\n\n\
+             Run `asciinema auth` and follow the link to upload more."
+        );
+    }
+
+    #[test]
+    fn leaves_unauthenticated_error_verbatim() {
+        let body = br#"{
+            "type": "unauthenticated",
+            "message": "Installation ID has been revoked"
+        }"#;
+
+        assert_eq!(
+            render_error_message(body),
+            Some("Installation ID has been revoked".to_owned())
+        );
+    }
+
+    #[test]
+    fn leaves_unknown_error_type_verbatim() {
+        let body = br#"{
+            "type": "future_error",
+            "message": "A future server error"
+        }"#;
+
+        assert_eq!(
+            render_error_message(body),
+            Some("A future server error".to_owned())
+        );
     }
 
     #[test]
@@ -396,7 +482,7 @@ mod tests {
         }"#;
 
         assert_eq!(
-            parse_error_message(body),
+            render_error_message(body),
             Some(
                 "Validation failed:\n  audio_url: has invalid format\n  \
                  audio_url: should be at most 255 character(s)"
@@ -477,7 +563,21 @@ mod tests {
             let error = Runtime::new()
                 .unwrap()
                 .block_on(handle_response_status(
+                    response(StatusCode::UNPROCESSABLE_ENTITY, body),
+                    SERVER_HOSTNAME,
+                    Some("The server doesn't support streaming".to_owned()),
+                ))
+                .unwrap_err();
+
+            assert_eq!(error.to_string(), "The server doesn't support streaming");
+        }
+
+        for body in ["not JSON", ""] {
+            let error = Runtime::new()
+                .unwrap()
+                .block_on(handle_response_status(
                     response(StatusCode::FORBIDDEN, body),
+                    SERVER_HOSTNAME,
                     None,
                 ))
                 .unwrap_err();
