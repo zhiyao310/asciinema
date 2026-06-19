@@ -1,8 +1,9 @@
 use std::fs;
+use std::io::{self, BufRead, Write};
 use std::path::Path;
 use std::time::Duration;
 
-use anyhow::{bail, Result};
+use anyhow::{anyhow, bail, Result};
 
 use crate::asciicast;
 use crate::cli::{self, Format};
@@ -15,16 +16,22 @@ impl cli::Convert {
     pub fn run(self) -> Result<()> {
         let input_path = self.get_input_path()?;
         let output_path = self.get_output_path();
-        let cast = asciicast::open_from_path(&*input_path)?;
+        let cast = open_input(input_path.as_ref().as_ref())?;
         let mut encoder = self.get_encoder();
-        let mut output_file = self.open_output_file(output_path)?;
+        let mut writer = self.open_output_writer(output_path)?;
 
-        encoder.encode_to_file(cast, &mut output_file)
+        encoder.encode_to_writer(cast, writer.as_mut())?;
+        writer.finish()?;
+
+        Ok(())
     }
 
     fn get_encoder(&self) -> Box<dyn encoder::Encoder> {
         let format = self.output_format.unwrap_or_else(|| {
-            if self.output.to_lowercase().ends_with(".txt") {
+            let output = self.output.to_lowercase();
+            let output = output.strip_suffix(".zst").unwrap_or(&output);
+
+            if output.ends_with(".txt") {
                 Format::Txt
             } else {
                 Format::AsciicastV3
@@ -57,7 +64,7 @@ impl cli::Convert {
         }
     }
 
-    fn open_output_file(&self, path: String) -> Result<fs::File> {
+    fn open_output_writer(&self, path: String) -> Result<Box<dyn OutputWriter>> {
         let overwrite = self.get_mode(&path)?;
 
         let file = fs::OpenOptions::new()
@@ -67,7 +74,11 @@ impl cli::Convert {
             .truncate(overwrite)
             .open(&path)?;
 
-        Ok(file)
+        if self.output.to_lowercase().ends_with(".zst") {
+            Ok(Box::new(zstd::stream::write::Encoder::new(file, 0)?))
+        } else {
+            Ok(Box::new(file))
+        }
     }
 
     fn get_mode(&self, path: &str) -> Result<bool> {
@@ -87,5 +98,97 @@ impl cli::Convert {
         }
 
         Ok(overwrite)
+    }
+}
+
+trait OutputWriter: Write {
+    fn finish(self: Box<Self>) -> io::Result<()>;
+}
+
+impl OutputWriter for fs::File {
+    fn finish(mut self: Box<Self>) -> io::Result<()> {
+        self.flush()
+    }
+}
+
+impl OutputWriter for zstd::stream::write::Encoder<'static, fs::File> {
+    fn finish(self: Box<Self>) -> io::Result<()> {
+        (*self).finish().map(drop)
+    }
+}
+
+fn open_input(path: &Path) -> Result<asciicast::Asciicast<'static>> {
+    const ZSTD_MAGIC: &[u8] = &[0x28, 0xb5, 0x2f, 0xfd];
+
+    let file = fs::File::open(path)
+        .map_err(|e| anyhow!("can't open {}: {}", path.to_string_lossy(), e))?;
+
+    let mut plain_reader = io::BufReader::new(file);
+
+    if plain_reader.fill_buf()?.starts_with(ZSTD_MAGIC) {
+        let zstd_decoder = zstd::stream::read::Decoder::with_buffer(plain_reader)?;
+        let zstd_reader = io::BufReader::new(zstd_decoder);
+
+        asciicast::open(zstd_reader)
+    } else {
+        asciicast::open(plain_reader)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs::{self, File};
+    use std::io::Read;
+
+    use tempfile::tempdir;
+
+    use super::*;
+
+    #[test]
+    fn zstd_round_trip() {
+        let dir = tempdir().unwrap();
+        let compressed_path = dir.path().join("recording.cast.zst");
+        let decompressed_path = dir.path().join("recording.cast");
+
+        convert("tests/casts/minimal-v3.cast", &compressed_path);
+
+        let compressed = fs::read(&compressed_path).unwrap();
+        assert!(compressed.starts_with(&[0x28, 0xb5, 0x2f, 0xfd]));
+
+        let suffixless_path = dir.path().join("recording.bin");
+        fs::rename(compressed_path, &suffixless_path).unwrap();
+        convert(&suffixless_path, &decompressed_path);
+
+        let cast = asciicast::open_from_path(decompressed_path).unwrap();
+        assert_eq!(cast.version, asciicast::Version::Three);
+        assert_eq!(cast.events.count(), 1);
+    }
+
+    #[test]
+    fn infers_txt_format_before_zstd_suffix() {
+        use zstd::stream::read::Decoder;
+
+        let dir = tempdir().unwrap();
+        let output_path = dir.path().join("recording.txt.zst");
+
+        convert("tests/casts/minimal-v3.cast", &output_path);
+
+        let mut decoder = Decoder::new(File::open(output_path).unwrap()).unwrap();
+        let mut output = String::new();
+
+        decoder.read_to_string(&mut output).unwrap();
+
+        assert_eq!(output, "hello\n");
+    }
+
+    fn convert(input: impl AsRef<Path>, output: impl AsRef<Path>) {
+        cli::Convert {
+            input: input.as_ref().to_string_lossy().into_owned(),
+            output: output.as_ref().to_string_lossy().into_owned(),
+            output_format: None,
+            overwrite: false,
+        }
+        .run()
+        .unwrap();
     }
 }

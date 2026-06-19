@@ -2,7 +2,6 @@ mod asciicast;
 mod raw;
 mod txt;
 
-use std::fs::File;
 use std::io::Write;
 
 use anyhow::Result;
@@ -19,18 +18,26 @@ pub trait Encoder {
 }
 
 pub trait EncoderExt {
-    fn encode_to_file(&mut self, cast: crate::asciicast::Asciicast, file: &mut File) -> Result<()>;
+    fn encode_to_writer<W: Write + ?Sized>(
+        &mut self,
+        cast: crate::asciicast::Asciicast,
+        writer: &mut W,
+    ) -> Result<()>;
 }
 
 impl<E: Encoder + ?Sized> EncoderExt for E {
-    fn encode_to_file(&mut self, cast: crate::asciicast::Asciicast, file: &mut File) -> Result<()> {
-        file.write_all(&self.header(&cast.header))?;
+    fn encode_to_writer<W: Write + ?Sized>(
+        &mut self,
+        cast: crate::asciicast::Asciicast,
+        writer: &mut W,
+    ) -> Result<()> {
+        writer.write_all(&self.header(&cast.header))?;
 
         for event in cast.events {
-            file.write_all(&self.event(event?))?;
+            writer.write_all(&self.event(event?))?;
         }
 
-        file.write_all(&self.flush())?;
+        writer.write_all(&self.flush())?;
 
         Ok(())
     }

@@ -591,10 +591,10 @@ pub struct Cat {
 
 #[derive(Debug, Args)]
 pub struct Convert {
-    /// The source recording to convert. Can be a local file path, HTTP(S) URL for remote files, or '-' to read from standard input. Remote URLs allow converting recordings directly from the web without need for manual downloading. Supported input formats include asciicast v1, v2 and v3.
+    /// The source recording to convert. Can be a local file path, HTTP(S) URL for remote files, or '-' to read from standard input. Remote URLs allow converting recordings directly from the web without need for manual downloading. Supported input formats include asciicast v1, v2 and v3, optionally compressed with zstd.
     pub input: String,
 
-    /// The output path for the converted recording. Can be a file path or '-' to write to standard output.
+    /// The output path for the converted recording. Can be a file path or '-' to write to standard output. A .zst suffix enables zstd compression.
     pub output: String,
 
     /// Specify the format for the converted recording. The default is asciicast-v3. If the output file path ends with .txt, the txt format will be selected automatically unless this option is explicitly specified.
