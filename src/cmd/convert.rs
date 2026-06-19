@@ -1,9 +1,9 @@
 use std::fs;
-use std::io::{self, BufRead, Write};
+use std::io::{self, Write};
 use std::path::Path;
 use std::time::Duration;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{bail, Result};
 
 use crate::asciicast;
 use crate::cli::{self, Format};
@@ -16,7 +16,7 @@ impl cli::Convert {
     pub fn run(self) -> Result<()> {
         let input_path = self.get_input_path()?;
         let output_path = self.get_output_path();
-        let cast = open_input(input_path.as_ref().as_ref())?;
+        let cast = asciicast::open_from_path_auto(input_path.as_ref().as_ref())?;
         let mut encoder = self.get_encoder();
         let mut writer = self.open_output_writer(output_path)?;
 
@@ -114,24 +114,6 @@ impl OutputWriter for fs::File {
 impl OutputWriter for zstd::stream::write::Encoder<'static, fs::File> {
     fn finish(self: Box<Self>) -> io::Result<()> {
         (*self).finish().map(drop)
-    }
-}
-
-fn open_input(path: &Path) -> Result<asciicast::Asciicast<'static>> {
-    const ZSTD_MAGIC: &[u8] = &[0x28, 0xb5, 0x2f, 0xfd];
-
-    let file = fs::File::open(path)
-        .map_err(|e| anyhow!("can't open {}: {}", path.to_string_lossy(), e))?;
-
-    let mut plain_reader = io::BufReader::new(file);
-
-    if plain_reader.fill_buf()?.starts_with(ZSTD_MAGIC) {
-        let zstd_decoder = zstd::stream::read::Decoder::with_buffer(plain_reader)?;
-        let zstd_reader = io::BufReader::new(zstd_decoder);
-
-        asciicast::open(zstd_reader)
-    } else {
-        asciicast::open(plain_reader)
     }
 }
 

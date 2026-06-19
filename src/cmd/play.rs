@@ -21,7 +21,7 @@ impl cli::Play {
         status::info!("Replaying session from {}", self.file);
 
         let ended = loop {
-            let recording = asciicast::open_from_path(&*path)?;
+            let recording = asciicast::open_from_path_auto(&*path)?;
 
             let ended = runtime.block_on(player::play(
                 recording,

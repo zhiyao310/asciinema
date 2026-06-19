@@ -125,6 +125,23 @@ pub fn open_from_path<S: AsRef<Path>>(path: S) -> Result<Asciicast<'static>> {
         .map_err(|e| anyhow!("can't open {}: {}", path.as_ref().to_string_lossy(), e))
 }
 
+pub fn open_from_path_auto<S: AsRef<Path>>(path: S) -> Result<Asciicast<'static>> {
+    const ZSTD_MAGIC: &[u8] = &[0x28, 0xb5, 0x2f, 0xfd];
+
+    fs::File::open(&path)
+        .map(io::BufReader::new)
+        .map_err(anyhow::Error::from)
+        .and_then(|mut reader| {
+            if reader.fill_buf()?.starts_with(ZSTD_MAGIC) {
+                let decoder = zstd::stream::read::Decoder::with_buffer(reader)?;
+                open(io::BufReader::new(decoder))
+            } else {
+                open(reader)
+            }
+        })
+        .map_err(|e| anyhow!("can't open {}: {}", path.as_ref().to_string_lossy(), e))
+}
+
 pub fn open<'a, R: BufRead + Send + 'a>(reader: R) -> Result<Asciicast<'a>> {
     let mut lines = reader.lines();
     let first_line = lines.next().ok_or(anyhow!("empty file"))??;
