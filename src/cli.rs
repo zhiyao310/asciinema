@@ -584,7 +584,7 @@ pub struct Session {
 
 #[derive(Debug, Args)]
 pub struct Cat {
-    /// List of recording files to concatenate. Provide at least two file paths (local files or HTTP(S) URLs). The files will be combined in the order specified. All files must be in asciicast format.
+    /// List of recording files to concatenate. Provide at least two file paths (local files or HTTP(S) URLs). The files will be combined in the order specified. All files must be in asciicast format and may optionally be compressed with zstd.
     #[arg(required = true, num_args = 2.., help = "Recording files to concatenate", long_help)]
     pub file: Vec<String>,
 }
