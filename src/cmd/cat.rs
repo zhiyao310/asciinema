@@ -55,7 +55,7 @@ impl cli::Cat {
             .iter()
             .map(|filename| {
                 let path = util::get_local_path(filename)?;
-                asciicast::open_from_path_auto(&*path)
+                asciicast::open_from_path(&*path)
             })
             .collect()
     }

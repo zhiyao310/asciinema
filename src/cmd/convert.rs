@@ -1,5 +1,4 @@
 use std::fs;
-use std::io::{self, Write};
 use std::path::Path;
 use std::time::Duration;
 
@@ -10,13 +9,14 @@ use crate::cli::{self, Format};
 use crate::encoder::{
     self, AsciicastV2Encoder, AsciicastV3Encoder, EncoderExt, RawEncoder, TextEncoder,
 };
+use crate::output_writer::{self, OutputWriter};
 use crate::util;
 
 impl cli::Convert {
     pub fn run(self) -> Result<()> {
         let input_path = self.get_input_path()?;
         let output_path = self.get_output_path();
-        let cast = asciicast::open_from_path_auto(input_path.as_ref().as_ref())?;
+        let cast = asciicast::open_from_path(input_path.as_ref().as_ref())?;
         let mut encoder = self.get_encoder();
         let mut writer = self.open_output_writer(output_path)?;
 
@@ -74,11 +74,7 @@ impl cli::Convert {
             .truncate(overwrite)
             .open(&path)?;
 
-        if self.output.to_lowercase().ends_with(".zst") {
-            Ok(Box::new(zstd::stream::write::Encoder::new(file, 0)?))
-        } else {
-            Ok(Box::new(file))
-        }
+        output_writer::new(file, self.output.to_lowercase().ends_with(".zst")).map_err(Into::into)
     }
 
     fn get_mode(&self, path: &str) -> Result<bool> {
@@ -98,22 +94,6 @@ impl cli::Convert {
         }
 
         Ok(overwrite)
-    }
-}
-
-trait OutputWriter: Write {
-    fn finish(self: Box<Self>) -> io::Result<()>;
-}
-
-impl OutputWriter for fs::File {
-    fn finish(mut self: Box<Self>) -> io::Result<()> {
-        self.flush()
-    }
-}
-
-impl OutputWriter for zstd::stream::write::Encoder<'static, fs::File> {
-    fn finish(self: Box<Self>) -> io::Result<()> {
-        (*self).finish().map(drop)
     }
 }
 

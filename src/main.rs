@@ -13,6 +13,7 @@ mod html;
 mod leb128;
 mod locale;
 mod notifier;
+mod output_writer;
 mod player;
 mod pty;
 mod server;

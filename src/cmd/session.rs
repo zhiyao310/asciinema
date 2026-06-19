@@ -24,6 +24,7 @@ use crate::forwarder;
 use crate::hash;
 use crate::locale;
 use crate::notifier::{self, BackgroundNotifier, Notifier, NullNotifier};
+use crate::output_writer;
 use crate::server;
 use crate::session::{self, KeyBindings, Metadata, TermInfo};
 use crate::status;
@@ -53,7 +54,7 @@ impl cli::Session {
         let notifier = get_notifier(&config);
         let (tty, term_info) = probe_tty(self.headless, self.window_size).await?;
         let metadata = self.get_session_metadata(&config.session, term_info)?;
-        let file_writer = self.get_file_writer(&metadata, notifier.clone()).await?;
+        let file_writer = self.get_file_writer(&metadata, notifier.clone())?;
         let listener = self.get_listener().await?;
         let relay = self.get_relay(&metadata, &mut config).await?;
         let relay_id = relay.as_ref().map(|r| r.id());
@@ -176,7 +177,7 @@ impl cli::Session {
         })
     }
 
-    async fn get_file_writer<N: Notifier + 'static>(
+    fn get_file_writer<N: Notifier + 'static>(
         &self,
         metadata: &Metadata,
         notifier: N,
@@ -187,11 +188,17 @@ impl cli::Session {
 
         let path = Path::new(path);
         let (overwrite, append) = self.get_file_mode(path)?;
-        let file = self.open_output_file(path, overwrite, append).await?;
+        let compressed = is_zstd_path(path);
+
+        if append {
+            validate_append_compression(path, compressed)?;
+        }
+
         let format = self.get_file_format(path, append)?;
-        let writer = Box::new(file);
-        let notifier = Box::new(notifier);
         let encoder = self.get_encoder(format, path, append)?;
+        let file = self.open_output_file(path, overwrite, append)?;
+        let writer = output_writer::new(file, compressed)?;
+        let notifier = Box::new(notifier);
 
         Ok(Some(FileWriter::new(
             writer,
@@ -225,7 +232,13 @@ impl cli::Session {
 
     fn get_file_format(&self, path: &Path, append: bool) -> Result<Format> {
         self.output_format.map(Ok).unwrap_or_else(|| {
-            if path.extension().is_some_and(|ext| ext == "txt") {
+            let format_path = if is_zstd_path(path) {
+                path.with_extension("")
+            } else {
+                path.to_owned()
+            };
+
+            if format_path.extension().is_some_and(|ext| ext == "txt") {
                 Ok(Format::Txt)
             } else if append {
                 match asciicast::open_from_path(path) {
@@ -267,24 +280,23 @@ impl cli::Session {
         }
     }
 
-    async fn open_output_file(
+    fn open_output_file(
         &self,
         path: &Path,
         overwrite: bool,
         append: bool,
-    ) -> Result<tokio::fs::File> {
+    ) -> Result<std::fs::File> {
         if let Some(dir) = path.parent() {
             let _ = std::fs::create_dir_all(dir);
         }
 
-        tokio::fs::File::options()
+        std::fs::File::options()
             .write(true)
             .append(append)
             .create(overwrite)
             .create_new(!overwrite && !append)
             .truncate(overwrite)
             .open(path)
-            .await
             .map_err(|e| e.into())
     }
 
@@ -514,6 +526,20 @@ impl Relay {
     }
 }
 
+fn is_zstd_path(path: &Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("zst"))
+}
+
+fn validate_append_compression(path: &Path, compressed: bool) -> Result<()> {
+    if asciicast::is_zstd(path)? != compressed {
+        bail!("can't append: file compression doesn't match its .zst extension");
+    }
+
+    Ok(())
+}
+
 fn get_key_bindings(config: &config::Session) -> Result<KeyBindings> {
     let mut keys = KeyBindings::default();
 
@@ -583,4 +609,33 @@ fn build_exec_extra_env(vars: &[String], relay_id: Option<&String>) -> HashMap<S
 
 fn get_parent_session_relay_id() -> Option<String> {
     env::var("ASCIINEMA_RELAY_ID").ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use tempfile::tempdir;
+
+    use super::*;
+
+    #[test]
+    fn rejects_append_compression_mismatch() {
+        let dir = tempdir().unwrap();
+        let plain_path = dir.path().join("plain.cast.zst");
+        let compressed_path = dir.path().join("compressed.cast");
+
+        fs::write(&plain_path, b"plain").unwrap();
+
+        fs::write(
+            &compressed_path,
+            zstd::stream::encode_all(&b"compressed"[..], 0).unwrap(),
+        )
+        .unwrap();
+
+        assert!(validate_append_compression(&plain_path, false).is_ok());
+        assert!(validate_append_compression(&plain_path, true).is_err());
+        assert!(validate_append_compression(&compressed_path, false).is_err());
+        assert!(validate_append_compression(&compressed_path, true).is_ok());
+    }
 }
