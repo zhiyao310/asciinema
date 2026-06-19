@@ -12,14 +12,14 @@ use crate::notifier::Notifier;
 use crate::output_writer::OutputWriter;
 use crate::session::{self, Metadata};
 
-pub struct FileWriter {
+pub struct FileOutput {
     writer: Box<dyn OutputWriter>,
     encoder: Box<dyn Encoder + Send>,
     notifier: Box<dyn Notifier>,
     metadata: Metadata,
 }
 
-pub struct LiveFileWriter {
+pub struct LiveFileOutput {
     commands: Option<mpsc::Sender<Command>>,
     worker: Option<thread::JoinHandle<()>>,
     notifier: Box<dyn Notifier>,
@@ -30,7 +30,7 @@ enum Command {
     Finish(oneshot::Sender<io::Result<()>>),
 }
 
-impl FileWriter {
+impl FileOutput {
     pub fn new(
         writer: Box<dyn OutputWriter>,
         encoder: Box<dyn Encoder + Send>,
@@ -45,18 +45,18 @@ impl FileWriter {
         }
     }
 
-    pub async fn start(self) -> io::Result<LiveFileWriter> {
+    pub async fn start(self) -> io::Result<LiveFileOutput> {
         let header = make_header(&self.metadata);
         let (commands_tx, commands_rx) = mpsc::channel();
         let (started_tx, started_rx) = oneshot::channel();
 
         let worker = thread::Builder::new()
-            .name("asciinema-file-writer".to_owned())
+            .name("asciinema-file-output".to_owned())
             .spawn(move || {
                 run_worker(self.writer, self.encoder, header, commands_rx, started_tx)
             })?;
 
-        let mut output = LiveFileWriter {
+        let mut output = LiveFileOutput {
             commands: Some(commands_tx),
             worker: Some(worker),
             notifier: self.notifier,
@@ -85,7 +85,7 @@ impl FileWriter {
 }
 
 #[async_trait]
-impl session::Output for LiveFileWriter {
+impl session::Output for LiveFileOutput {
     async fn event(&mut self, event: session::Event) -> io::Result<()> {
         let result = match &self.commands {
             Some(commands) => send_command(commands, |result| Command::Event(event, result)).await,
@@ -119,7 +119,7 @@ impl session::Output for LiveFileWriter {
     }
 }
 
-impl LiveFileWriter {
+impl LiveFileOutput {
     fn join_worker(&mut self) -> io::Result<()> {
         if let Some(worker) = self.worker.take() {
             worker.join().map_err(|_| worker_failed())?;
@@ -216,7 +216,7 @@ fn make_header(metadata: &Metadata) -> asciicast::Header {
 }
 
 fn worker_failed() -> io::Error {
-    io::Error::other("file writer worker failed")
+    io::Error::other("file output worker failed")
 }
 
 impl From<session::Event> for asciicast::Event {
@@ -361,11 +361,11 @@ mod tests {
             title: None,
             env: HashMap::new(),
         };
-        let file_writer = FileWriter::new(writer, encoder, Box::new(NullNotifier), metadata);
+        let file_output = FileOutput::new(writer, encoder, Box::new(NullNotifier), metadata);
         let runtime = tokio::runtime::Runtime::new().unwrap();
 
         runtime.block_on(async {
-            let mut output = file_writer.start().await.unwrap();
+            let mut output = file_output.start().await.unwrap();
             output
                 .event(session::Event::Output(time, text.to_owned()))
                 .await

@@ -6,7 +6,7 @@ mod cmd;
 mod config;
 mod encoder;
 mod fd;
-mod file_writer;
+mod file_output;
 mod forwarder;
 mod hash;
 mod html;

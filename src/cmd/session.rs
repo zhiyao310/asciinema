@@ -19,7 +19,7 @@ use crate::asciicast::{self, Version};
 use crate::cli::{self, Format, RelayTarget};
 use crate::config::{self, Config};
 use crate::encoder::{AsciicastV2Encoder, AsciicastV3Encoder, Encoder, RawEncoder, TextEncoder};
-use crate::file_writer::FileWriter;
+use crate::file_output::FileOutput;
 use crate::forwarder;
 use crate::hash;
 use crate::locale;
@@ -54,7 +54,7 @@ impl cli::Session {
         let notifier = get_notifier(&config);
         let (tty, term_info) = probe_tty(self.headless, self.window_size).await?;
         let metadata = self.get_session_metadata(&config.session, term_info)?;
-        let file_writer = self.get_file_writer(&metadata, notifier.clone())?;
+        let file_output = self.get_file_output(&metadata, notifier.clone())?;
         let listener = self.get_listener().await?;
         let relay = self.get_relay(&metadata, &mut config).await?;
         let relay_id = relay.as_ref().map(|r| r.id());
@@ -96,8 +96,8 @@ impl cli::Session {
         let shutdown_token = CancellationToken::new();
         let mut outputs: Vec<Box<dyn session::Output>> = Vec::new();
 
-        if let Some(writer) = file_writer {
-            let output = writer.start().await?;
+        if let Some(file_output) = file_output {
+            let output = file_output.start().await?;
             outputs.push(Box::new(output));
         }
 
@@ -177,11 +177,11 @@ impl cli::Session {
         })
     }
 
-    fn get_file_writer<N: Notifier + 'static>(
+    fn get_file_output<N: Notifier + 'static>(
         &self,
         metadata: &Metadata,
         notifier: N,
-    ) -> Result<Option<FileWriter>> {
+    ) -> Result<Option<FileOutput>> {
         let Some(path) = self.output_file.as_ref() else {
             return Ok(None);
         };
@@ -200,7 +200,7 @@ impl cli::Session {
         let writer = output_writer::new(file, compressed)?;
         let notifier = Box::new(notifier);
 
-        Ok(Some(FileWriter::new(
+        Ok(Some(FileOutput::new(
             writer,
             encoder,
             notifier,
