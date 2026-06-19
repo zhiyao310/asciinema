@@ -14,7 +14,7 @@ pub use txt::TextEncoder;
 pub trait Encoder {
     fn header(&mut self, header: &Header) -> Vec<u8>;
     fn event(&mut self, event: Event) -> Vec<u8>;
-    fn flush(&mut self) -> Vec<u8>;
+    fn finish(&mut self) -> Vec<u8>;
 }
 
 pub trait EncoderExt {
@@ -37,7 +37,7 @@ impl<E: Encoder + ?Sized> EncoderExt for E {
             writer.write_all(&self.event(event?))?;
         }
 
-        writer.write_all(&self.flush())?;
+        writer.write_all(&self.finish())?;
 
         Ok(())
     }

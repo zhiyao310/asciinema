@@ -107,7 +107,7 @@ impl session::Output for LiveFileWriter {
         }
     }
 
-    async fn flush(&mut self) -> io::Result<()> {
+    async fn finish(&mut self) -> io::Result<()> {
         let Some(commands) = self.commands.take() else {
             return Ok(());
         };
@@ -164,7 +164,7 @@ fn run_worker(
             }
 
             Command::Finish(result) => {
-                let write_result = writer.write_all(&encoder.flush());
+                let write_result = writer.write_all(&encoder.finish());
 
                 let finish_result = match write_result {
                     Ok(()) => writer.finish(),
@@ -182,7 +182,7 @@ fn run_worker(
         }
     }
 
-    let _ = writer.write_all(&encoder.flush());
+    let _ = writer.write_all(&encoder.finish());
     let _ = writer.finish();
 }
 
@@ -370,7 +370,7 @@ mod tests {
                 .event(session::Event::Output(time, text.to_owned()))
                 .await
                 .unwrap();
-            output.flush().await.unwrap();
+            output.finish().await.unwrap();
         });
     }
 }
