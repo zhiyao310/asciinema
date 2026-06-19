@@ -191,6 +191,7 @@ async fn send_command(
     make_command: impl FnOnce(oneshot::Sender<io::Result<()>>) -> Command,
 ) -> io::Result<()> {
     let (result_tx, result_rx) = oneshot::channel();
+
     commands
         .send(make_command(result_tx))
         .map_err(|_| worker_failed())?;
