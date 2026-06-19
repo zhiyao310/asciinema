@@ -619,7 +619,7 @@ pub struct Convert {
 
 #[derive(Debug, Args)]
 pub struct Upload {
-    /// The path to the asciicast recording file to upload, in a supported asciicast format (v1, v2, or v3).
+    /// The path to the asciicast recording file to upload, in a supported asciicast format (v1, v2, or v3), optionally compressed with zstd.
     pub file: String,
 
     /// Set a title for the recording that will be stored in the recording metadata and displayed to viewers. For example: --title "Installing Podman on Ubuntu". This option takes precedence over the "title" field from the recording file itself.

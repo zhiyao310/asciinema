@@ -13,7 +13,7 @@ impl cli::Upload {
 
     async fn do_run(self) -> Result<()> {
         let mut config = Config::new(self.server_url.clone())?;
-        let _ = asciicast::open_from_path(&self.file)?;
+        let _ = asciicast::open_from_path_auto(&self.file)?;
 
         let visibility = self.visibility.map(|v| match v {
             cli::Visibility::Public => api::Visibility::Public,
