@@ -39,8 +39,9 @@ Notable features:
 - combined sessions: record to a file while streaming locally and remotely at
   the same time,
 - [lightweight asciicast recording
-  format](https://docs.asciinema.org/manual/asciicast/v3/), highly compressible
-  (8% of the original size on average),
+  format](https://docs.asciinema.org/manual/asciicast/v3/), with native reading
+  and writing of zstd-compressed (`.zst`) recordings (8% of the original size
+  on average),
 - conversion from asciicast v1/v2/v3 to asciicast v2/v3, raw terminal output,
   or plain text,
 - concatenation of multiple recordings into one, with timing adjusted
