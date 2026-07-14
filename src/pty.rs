@@ -3,6 +3,7 @@ use std::env;
 use std::ffi::{CString, NulError};
 use std::os::fd::OwnedFd;
 use std::os::unix::io::AsRawFd;
+use std::path::Path;
 
 use nix::errno::Errno;
 use nix::pty::{ForkptyResult, Winsize};
@@ -69,6 +70,15 @@ pub fn spawn<S: AsRef<str>>(
     winsize: Winsize,
     extra_env: &HashMap<String, String>,
 ) -> anyhow::Result<Pty> {
+    spawn_in_dir(command, winsize, extra_env, None)
+}
+
+pub fn spawn_in_dir<S: AsRef<str>>(
+    command: &[S],
+    winsize: Winsize,
+    extra_env: &HashMap<String, String>,
+    working_dir: Option<&Path>,
+) -> anyhow::Result<Pty> {
     let result = unsafe { pty::forkpty(Some(&winsize), None) }?;
 
     match result {
@@ -80,7 +90,7 @@ pub fn spawn<S: AsRef<str>>(
         }
 
         ForkptyResult::Child => {
-            handle_child(command, extra_env)?;
+            handle_child(command, extra_env, working_dir)?;
             unreachable!();
         }
     }
@@ -89,6 +99,7 @@ pub fn spawn<S: AsRef<str>>(
 fn handle_child<S: AsRef<str>>(
     command: &[S],
     extra_env: &HashMap<String, String>,
+    working_dir: Option<&Path>,
 ) -> anyhow::Result<()> {
     let command = command
         .iter()
@@ -97,6 +108,10 @@ fn handle_child<S: AsRef<str>>(
 
     for (k, v) in extra_env {
         env::set_var(k, v);
+    }
+
+    if let Some(working_dir) = working_dir {
+        env::set_current_dir(working_dir)?;
     }
 
     unsafe { signal::signal(Signal::SIGPIPE, SigHandler::SigDfl) }?;
@@ -172,6 +187,21 @@ sys.stdout.write('bar');
         let output = read_output(pty).await;
 
         assert_eq!(output, vec!["bar"]);
+    }
+
+    #[tokio::test]
+    async fn spawn_with_working_directory() {
+        let directory = tempfile::tempdir().unwrap();
+        let pty = super::spawn_in_dir(
+            &["pwd"],
+            TtySize::default().into(),
+            &HashMap::new(),
+            Some(directory.path()),
+        )
+        .unwrap();
+        let output = read_output(pty).await.join("");
+
+        assert_eq!(output.trim(), directory.path().to_string_lossy());
     }
 
     #[tokio::test]

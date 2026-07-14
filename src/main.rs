@@ -5,6 +5,7 @@ mod cli;
 mod cmd;
 mod config;
 mod encoder;
+mod expect;
 mod fd;
 mod file_output;
 mod forwarder;
@@ -101,5 +102,6 @@ fn main() -> ExitCode {
         Commands::Convert(cmd) => cmd.run().report(),
         Commands::Upload(cmd) => cmd.run().report(),
         Commands::Auth(cmd) => cmd.run().report(),
+        Commands::Expect(cmd) => cmd.run().report(),
     }
 }

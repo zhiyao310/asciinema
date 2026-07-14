@@ -27,6 +27,20 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+    /// Run a terminal scenario and export a recording, snapshots, GIF, and MP4.
+    #[clap(
+        about = "Run a terminal scenario and export recording artifacts",
+        long_about,
+        after_help = "\x1b[1;4mExamples\x1b[0m:
+
+  asciinema expect demo.sh
+      Runs demo.sh and exports demo/demo.cast, demo/demo.gif, demo/demo.mp4, and PNG snapshots
+
+  asciinema expect demo.sh --output-dir dist/demo
+      Runs the same scenario with artifacts written to dist/demo"
+    )]
+    Expect(Expect),
+
     /// Record a terminal session to a file.
     ///
     /// Captures all terminal output and optionally keyboard input, saving it for later playback. Supports various output formats, idle time limiting, and session customization options.
@@ -215,6 +229,56 @@ pub enum Commands {
       Downloads a remote recording and converts it to the latest asciicast format (v3)"
     )]
     Convert(Convert),
+}
+
+#[derive(Debug, Args)]
+pub struct Expect {
+    /// Scenario script with a .sh extension.
+    pub script: PathBuf,
+
+    /// Directory for the .cast, .gif, .mp4, and snapshot PNG artifacts.
+    #[arg(short, long, value_name = "DIR")]
+    pub output_dir: Option<PathBuf>,
+
+    /// Shell executable used for the isolated terminal session.
+    #[arg(long, default_value = "/bin/bash", value_name = "PATH")]
+    pub shell: PathBuf,
+
+    /// Timeout in seconds for each `#$ expect` directive.
+    #[arg(short = 't', long, default_value_t = 120, value_name = "SECONDS")]
+    pub timeout: u64,
+
+    /// Default delay in milliseconds between typed characters.
+    #[arg(long, default_value_t = 50, value_name = "MILLISECONDS")]
+    pub delay: u64,
+
+    /// Default wait in milliseconds before each scenario instruction.
+    #[arg(long, default_value_t = 80, value_name = "MILLISECONDS")]
+    pub wait: u64,
+
+    /// Show PTY output above a fixed five-row progress display.
+    #[arg(long)]
+    pub monitor: bool,
+
+    /// Terminal width used for recording and rendering.
+    #[arg(long, default_value_t = 80, value_name = "COLS")]
+    pub cols: u16,
+
+    /// Terminal height used for recording and rendering.
+    #[arg(long, default_value_t = 24, value_name = "ROWS")]
+    pub rows: u16,
+
+    /// agg theme used for GIF and snapshot PNG rendering.
+    #[arg(long, default_value = "github-light", value_name = "THEME")]
+    pub theme: String,
+
+    /// Font size in pixels used by agg.
+    #[arg(long, default_value_t = 28, value_name = "PIXELS")]
+    pub font_size: usize,
+
+    /// ffmpeg executable used to create MP4 and snapshot PNGs.
+    #[arg(long, default_value = "ffmpeg", value_name = "PATH")]
+    pub ffmpeg: PathBuf,
 }
 
 #[derive(Debug, Args)]

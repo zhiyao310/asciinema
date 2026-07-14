@@ -12,6 +12,7 @@ license = "GPL-3.0-or-later"
 rust-version = "1.82.0"
 
 [dependencies]
+agg = { git = "https://github.com/asciinema/agg.git", rev = "e7b0e3bd597798734a86669d7118eef7799da2ab" }
 anyhow = "1.0"
 nix = { version = "0.30", features = ["fs", "term", "process", "signal", "poll"] }
 serde = { version = "1.0", features = ["derive"] }
@@ -43,6 +44,7 @@ async-trait = "0.1"
 signal-hook-tokio = { version = "0.3", features = ["futures-v0_3"] }
 bytes = "1.11"
 zstd = "0.13.3"
+regex = "1.11"
 
 [build-dependencies]
 clap = { version = "4.0", features = ["derive", "wrap_help"] }

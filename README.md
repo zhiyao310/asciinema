@@ -1,3 +1,105 @@
+# Asciicast Expect
+
+The `asciinema expect` subcommand runs a scripted terminal scenario and exports
+an asciicast recording, an animated GIF, an H.264 MP4, and named PNG snapshots.
+Recording is provided by this fork of asciinema; GIF and snapshot rendering use
+the bundled Rust dependency on [agg](https://github.com/asciinema/agg); MP4
+encoding uses a system `ffmpeg` executable.
+
+Install this fork with Cargo:
+
+```sh
+cargo install --locked --git https://github.com/trdthg/asciinema
+```
+
+Scenarios use ordinary shell input plus `#$` directives. This complete
+`gcc-hello.sh` example creates a C source file with a heredoc, compiles it, and
+runs the result. `#$ snapshot` writes a named PNG snapshot at that point in the
+terminal session:
+
+```sh
+#$ expect \$
+
+#$ snapshot before-create-source
+cat > hello.c <<'EOF'
+#include <stdio.h>
+
+int main(void) {
+    puts("Hello, expect!");
+    return 0;
+}
+EOF
+#$ expect \$
+cat hello.c
+#$ expect \$
+#$ snapshot after-create-source
+
+#$ snapshot before-compile
+gcc -Wall -Wextra -std=c11 hello.c -o hello
+#$ expect \$
+#$ snapshot after-compile
+
+#$ snapshot before-run
+./hello
+#$ expect Hello, expect!
+#$ expect \$
+#$ snapshot after-run
+```
+
+## Scenario directives
+
+Every directive starts with `#$`. Other non-comment lines are typed into the
+shell and submitted with Enter.
+
+| Directive | Description |
+| --- | --- |
+| `#$ expect REGEX` | Wait until terminal output matches `REGEX`. The command fails after `--timeout` seconds. |
+| `#$ snapshot LABEL` | Add a named point to the recording and export a PNG named after `LABEL`. |
+| `#$ delay MILLISECONDS` | Set the delay between characters typed by subsequent shell commands and `send` directives. |
+| `#$ wait MILLISECONDS` | Set the pause before each subsequent scenario instruction. |
+| `#$ send TEXT` | Send `TEXT` without pressing Enter. Standard escapes such as `\n`, `\r`, and `\t` are decoded. |
+| `#$ sendcharacter TEXT` | Send `TEXT` literally, without escape decoding or pressing Enter. |
+| `#$ sendcontrol LETTER` | Send an ASCII control key, for example `#$ sendcontrol c` for Ctrl-C. |
+| `#$ sendarrow DIRECTION [COUNT]` | Send `up`, `down`, `left`, or `right` arrow keys. `COUNT` defaults to `1`. |
+| `#$ sendlinearrow DIRECTION [COUNT]` | Send an arrow key followed by Enter, repeated `COUNT` times. |
+
+### SSH session
+
+An interactive SSH session can be part of a scenario when the target host is
+already configured for non-interactive authentication:
+
+```sh
+#$ expect \$
+ssh work@localhost
+#$ expect \$
+uname -a
+#$ expect \$
+exit
+#$ expect \$
+```
+
+`exit` is required: it closes the remote shell and returns to the local shell
+before the recorder sends its final EOF. Without it, the outer shell remains
+open and the scenario does not finish cleanly.
+
+Run it with an explicit `.sh` filename:
+
+```sh
+asciinema expect gcc-hello.sh
+```
+
+Use `--monitor` to view raw PTY input and output in an alternate screen with a
+five-row progress display. The panel keeps the latest steps with source line,
+instruction type, and summary, and restores the previous screen before export
+begins.
+
+For `gcc-hello.sh`, the command writes `gcc-hello/gcc-hello.cast`,
+`gcc-hello/gcc-hello.gif`, `gcc-hello/gcc-hello.mp4`, and PNGs below
+`gcc-hello/snapshots/`. Use `--output-dir DIR`, `--theme THEME`,
+`--font-size PIXELS`, or `--ffmpeg PATH` to customize output. The scenario's
+relative shell files, such as `hello.c` and `hello`, are created beside the
+scenario file.
+
 # asciinema
 
 [![Build Status](https://github.com/asciinema/asciinema/actions/workflows/ci.yml/badge.svg)](https://github.com/asciinema/asciinema/actions/workflows/asciinema.yml)
