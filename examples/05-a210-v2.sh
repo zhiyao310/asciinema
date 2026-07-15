@@ -69,7 +69,7 @@ cd .. && ruyi-deactivate
 #$ expect \$
 
 #$ send \n
-#$ sendcharacter ~.
+#$ sendcharacter ~~.
 #$ expect \$
-exit
+exit 0
 #$ expect \$

@@ -3,6 +3,12 @@
 # RuyiSDK: 0.50.0; gnu-ruyisdk: 0.20260625.0; llvm-ruyisdk: 22.1.8-ruyi.20260625.
 
 #$ expect \$
+ssh tiaoban
+#$ expect \$
+ssh rv2
+#$ expect (?i)password:
+debian
+#$ expect \$
 cat /proc/cpuinfo
 #$ expect \$
 #$ snapshot device-cpuinfo
@@ -60,4 +66,10 @@ mv coremark.exe coremark-llvm && ./coremark-llvm
 #$ snapshot llvm-coremark
 #$ expect \$
 cd .. && ruyi-deactivate
+#$ expect \$
+
+#$ send \n
+#$ sendcharacter ~~.
+#$ expect \$
+exit 0
 #$ expect \$

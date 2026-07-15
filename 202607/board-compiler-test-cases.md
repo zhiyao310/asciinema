@@ -6,12 +6,12 @@
 | 2   | HiFive Premier P550      | EIC7700X      | SiFive P550      | 已实测        |
 | 3   | ESWIN EBC7702            | EIC7702X      | SiFive P550      | 已实测        |
 | 4   | SG2044 EVB               | SOPHGO SG2044 | T-Head C920v2    | 已实测        |
-| 5   | A210 SODIMM V2           | A210          | 4xC920 + 4xC908  | 完成用例       |
+| 5   | A210 SODIMM V2           | A210          | 4xC920 + 4xC908  | 已实测        |
 | 6   | VisionFive 2 Lite        | JH7110        | SiFive U74       | 已实测        |
 | 7   | Canaan K510 CRB-V1.2 KIT | K510          | Dual 64bit cores | 已实测        |
 | 8   | Milk-V Megrez            | EIC7700X      | SiFive P550      | 已实测        |
 | 9   | RISC-V Book（如意笔记本甲辰版）    | TH1520        | XuanTie C910     | 已实测        |
-| 10  | RISC-V Book 2（如意二代笔记本）   | A210          | 4xC920 + 4xC908  | 完成用例       |
+| 10  | RISC-V Book 2（如意二代笔记本）   | A210          | 4xC920 + 4xC908  | 已实测        |
 | 11  | SpacemiT K3 Pico-ITX     | SpacemiT K3   | X100             | 完成用例       |
 
 测试11种RISC-V开发板上GCC和LLVM工具链的测试情况，验证 GCC 和 LLVM 工具链是否能在目标RISC-V开发板上正常安装、编译和运行程序。通过 Hello World 和 Coremark 两个程序验证基本功能和性能。使用 RuyiSDK作为统一的工具链管理工具，确保测试环境的一致性。开发板型号列表如下：
@@ -160,7 +160,7 @@ LLVM测试：创建并激活LLVM虚拟环境，验证Clang版本，编译并运�
 
 | 序号  | 输入及操作说明                                                                                                                                                                                                                         | 期望测试结果          |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| 1   | 安装依赖包<br>sudo apt update; sudo apt install -y wget tar zstd xz-utils git build-essential                                                                                                              | 成功安装            |
+| 1   | 安装依赖包<br>sudo apt update; sudo apt install -y wget tar zstd xz-utils git build-essential openssl ca-certificates; sudo update-ca-certificates | 成功安装            |
 | 2   | 安装ruyi包管理器<br>wget https://mirror.iscas.ac.cn/ruyisdk/ruyi/tags/0.50.0/ruyi-0.50.0.riscv64<br>chmod +x ./ruyi-0.50.0.riscv64<br>sudo cp -v ./ruyi-0.50.0.riscv64 /usr/local/bin/ruyi<br>ruyi version                            | 成功安装            |
 | 3   | 安装GCC和LLVM工具链<br>ruyi update<br>ruyi install gnu-ruyisdk (0.20260625.0)<br>ruyi install llvm-ruyisdk (22.1.8-ruyi.20260625)                                                                                                     | 成功安装            |
 | 4   | 创建并激活ruyi虚拟环境（GCC）<br>ruyi venv -t gnu-ruyisdk manual venv-gnu-ruyisdk-a210-sodimm-v2<br>. venv-gnu-ruyisdk-a210-sodimm-v2/bin/ruyi-activate                                                                          | 成功创建并激活虚拟环境     |
