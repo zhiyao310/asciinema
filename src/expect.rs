@@ -854,11 +854,9 @@ fn render_snapshot_pngs(
         )?;
 
         for ((index, label), temporary_png) in labels.iter().enumerate().zip(&temporary_pngs) {
-            let destination = paths.snapshot_dir.join(format!(
-                "{:02}-{}.png",
-                index + 1,
-                marker_name(label, index + 1)
-            ));
+            let destination = paths
+                .snapshot_dir
+                .join(format!("{}.png", marker_name(label, index + 1)));
             fs::rename(temporary_png, destination)?;
         }
 
@@ -1100,8 +1098,8 @@ echo done
         assert_eq!(markers, 2);
         assert!(output.join("demo.gif").is_file());
         assert!(output.join("demo.mp4").is_file());
-        assert!(output.join("snapshots/01-greeting.png").is_file());
-        assert!(output.join("snapshots/02-second.png").is_file());
+        assert!(output.join("snapshots/greeting.png").is_file());
+        assert!(output.join("snapshots/second.png").is_file());
         assert!(directory.path().join("relative-path-check").is_file());
     }
 
@@ -1140,12 +1138,12 @@ echo done
             .filter(|event| matches!(event.data, crate::asciicast::EventData::Marker(_)))
             .count();
         let snapshots = [
-            "01-before-create-source.png",
-            "02-after-create-source.png",
-            "03-before-compile.png",
-            "04-after-compile.png",
-            "05-before-run.png",
-            "06-after-run.png",
+            "before-create-source.png",
+            "after-create-source.png",
+            "before-compile.png",
+            "after-compile.png",
+            "before-run.png",
+            "after-run.png",
         ];
 
         assert!(directory.path().join("hello.c").is_file());
@@ -1189,12 +1187,12 @@ echo done
         }
         let snapshots = output.join("snapshots");
         assert_eq!(
-            fs::read(snapshots.join("02-after-create-source.png")).unwrap(),
-            fs::read(snapshots.join("03-before-compile.png")).unwrap()
+            fs::read(snapshots.join("after-create-source.png")).unwrap(),
+            fs::read(snapshots.join("before-compile.png")).unwrap()
         );
         assert_eq!(
-            fs::read(snapshots.join("04-after-compile.png")).unwrap(),
-            fs::read(snapshots.join("05-before-run.png")).unwrap()
+            fs::read(snapshots.join("after-compile.png")).unwrap(),
+            fs::read(snapshots.join("before-run.png")).unwrap()
         );
     }
 }

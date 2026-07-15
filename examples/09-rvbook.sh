@@ -1,0 +1,65 @@
+# GCC and LLVM compiler test for RISC-V Book (Jiachen edition).
+# Run this scenario after the laptop has booted and the terminal login is ready.
+# The LLVM CoreMark target intentionally omits V: the board reports RVV 0.7.1,
+# while the current RuyiSDK LLVM toolchain emits standard RVV 1.0 instructions.
+# RuyiSDK: 0.50.0; gnu-ruyisdk: 0.20260625.0; llvm-ruyisdk: 22.1.8-ruyi.20260625.
+
+#$ expect \$
+cat /proc/cpuinfo
+#$ expect \$
+#$ snapshot device-cpuinfo
+cat /proc/device-tree/model
+#$ expect \$
+#$ snapshot device-model
+ruyi venv -t gnu-ruyisdk manual venv-gnu-ruyisdk-riscv-book
+#$ expect \$
+. venv-gnu-ruyisdk-riscv-book/bin/ruyi-activate
+#$ expect \$
+riscv64-ruyisdk-linux-gnu-gcc -v
+#$ expect \$
+cat > hello.c <<'EOF'
+#include <stdio.h>
+
+int main() {
+    printf("Hello, World!\n");
+    return 0;
+}
+EOF
+#$ expect \$
+riscv64-ruyisdk-linux-gnu-gcc hello.c -o hello-gcc && ./hello-gcc
+#$ expect Hello, World!
+#$ snapshot gcc-hello
+#$ expect \$
+git clone https://github.com/eembc/coremark
+#$ expect \$
+cd coremark
+#$ expect \$
+make CC=riscv64-ruyisdk-linux-gnu-gcc XCFLAGS="-mcpu=xt-c910" compile
+#$ expect \$
+mv coremark.exe coremark-gcc && ./coremark-gcc
+#$ expect CoreMark
+#$ snapshot gcc-coremark
+#$ expect \$
+cd .. && ruyi-deactivate
+#$ expect \$
+
+ruyi venv -t llvm-ruyisdk manual --sysroot-from gnu-ruyisdk venv-llvm-ruyisdk-riscv-book
+#$ expect \$
+. venv-llvm-ruyisdk-riscv-book/bin/ruyi-activate
+#$ expect \$
+clang -v
+#$ expect \$
+clang hello.c -o hello-llvm && ./hello-llvm
+#$ expect Hello, World!
+#$ snapshot llvm-hello
+#$ expect \$
+cd coremark && make clean
+#$ expect \$
+make CC=clang XCFLAGS="-march=rv64gc" compile
+#$ expect \$
+mv coremark.exe coremark-llvm && ./coremark-llvm
+#$ expect CoreMark
+#$ snapshot llvm-coremark
+#$ expect \$
+cd .. && ruyi-deactivate
+#$ expect \$
