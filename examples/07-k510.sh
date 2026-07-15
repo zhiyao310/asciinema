@@ -1,19 +1,25 @@
 # GCC and LLVM compiler test for Canaan K510 CRB-V1.2 KIT.
 #
 # This is the one host-side scenario in the set. The K510 test document builds
-# on an x86 host and then transfers the binaries to the board. Set
-# K510_BOARD_HOST to a host reachable with key-based SSH before running it,
-# for example: K510_BOARD_HOST=root@192.168.1.50.
-# K510_SERVER_IP defaults to the address used in the test document.
+# on an x86 host and then transfers the binaries to the board. 
+# 1.Ensure the board is connected via USB-UART and you can access it with:
+# sudo minicom -D /dev/ttyUSB0 -b 115200
+# 2.Optionally set K510_HTTP_PORT if you want a custom HTTP port (default: 8000)
+# 3.K510_SERVER_IP defaults to the address used in the test document.
 # RuyiSDK: 0.50.0; gnu-ruyisdk: 0.20260625.0; llvm-ruyisdk: 22.1.8-ruyi.20260625.
 
 #$ expect \$
-ssh "$K510_BOARD_HOST" 'cat /proc/cpuinfo'
+sudo minicom -D /dev/ttyUSB0 -b 115200
+#$ expect \$
+cat /proc/cpuinfo
 #$ expect \$
 #$ snapshot device-cpuinfo
-ssh "$K510_BOARD_HOST" 'cat /proc/device-tree/model'
+cat /proc/device-tree/model
 #$ expect \$
 #$ snapshot device-model
+#$ expect \$
+exit
+#$ expect \$
 ruyi venv -t gnu-ruyisdk generic gcc-env
 #$ expect \$
 . gcc-env/bin/ruyi-activate
@@ -47,15 +53,19 @@ cd .. && ruyi-deactivate
 # Start the host-side file server before the board-side download steps.
 K510_SERVER_IP="${K510_SERVER_IP:-10.13.21.160}"; K510_HTTP_PORT="${K510_HTTP_PORT:-8000}"; K510_BOARD_HOST="${K510_BOARD_HOST:?Set K510_BOARD_HOST, for example root@192.168.1.50}"; python3 -m http.server "$K510_HTTP_PORT" >/tmp/k510-compiler-test-http.log 2>&1 & HTTP_PID=$!; trap 'kill "$HTTP_PID" 2>/dev/null' EXIT
 #$ expect \$
-ssh "$K510_BOARD_HOST" "wget http://${K510_SERVER_IP}:${K510_HTTP_PORT}/hello-gcc -O /root/hello-gcc && wget http://${K510_SERVER_IP}:${K510_HTTP_PORT}/coremark-gcc -O /root/coremark-gcc"
+sudo minicom -D /dev/ttyUSB0 -b 115200 
 #$ expect \$
-ssh "$K510_BOARD_HOST" 'chmod +x /root/hello-gcc && /root/hello-gcc'
+wget http://${K510_SERVER_IP}:${K510_HTTP_PORT}/hello-gcc -O /root/hello-gcc && wget http://${K510_SERVER_IP}:${K510_HTTP_PORT}/coremark-gcc -O /root/coremark-gcc
+#$ expect \$
+chmod +x /root/hello-gcc && /root/hello-gcc
 #$ expect Hello, World!
 #$ snapshot gcc-hello
 #$ expect \$
-ssh "$K510_BOARD_HOST" 'chmod +x /root/coremark-gcc && /root/coremark-gcc'
+chmod +x /root/coremark-gcc && /root/coremark-gcc
 #$ expect CoreMark
 #$ snapshot gcc-coremark
+#$ expect \$
+exit
 #$ expect \$
 
 ruyi venv -t llvm-ruyisdk generic --sysroot-from gnu-ruyisdk llvm-env
@@ -79,15 +89,22 @@ OBJCOPY="${K510_OBJCOPY:-$HOME/tes/k510_buildroot/k510_crb_lp3_v1_2_defconfig/ho
 cd .. && ruyi-deactivate
 #$ expect \$
 
-ssh "$K510_BOARD_HOST" "wget http://${K510_SERVER_IP}:${K510_HTTP_PORT}/hello_llvm -O /root/hello_llvm && wget http://${K510_SERVER_IP}:${K510_HTTP_PORT}/coremark_llvm -O /root/coremark_llvm"
+# Start the host-side file server before the board-side download steps.
+K510_SERVER_IP="${K510_SERVER_IP:-10.13.21.160}"; K510_HTTP_PORT="${K510_HTTP_PORT:-8000}"; K510_BOARD_HOST="${K510_BOARD_HOST:?Set K510_BOARD_HOST, for example root@192.168.1.50}"; python3 -m http.server "$K510_HTTP_PORT" >/tmp/k510-compiler-test-http.log 2>&1 & HTTP_PID=$!; trap 'kill "$HTTP_PID" 2>/dev/null' EXIT
 #$ expect \$
-ssh "$K510_BOARD_HOST" 'chmod +x /root/hello_llvm && /root/hello_llvm'
+sudo minicom -D /dev/ttyUSB0 -b 115200 
+#$ expect \$
+wget http://${K510_SERVER_IP}:${K510_HTTP_PORT}/hello_llvm -O /root/hello_llvm && wget http://${K510_SERVER_IP}:${K510_HTTP_PORT}/coremark_llvm -O /root/coremark_llvm
+#$ expect \$
+chmod +x /root/hello_llvm && /root/hello_llvm
 #$ expect Hello, World!
 #$ snapshot llvm-hello
 #$ expect \$
-ssh "$K510_BOARD_HOST" 'chmod +x /root/coremark_llvm && /root/coremark_llvm'
+chmod +x /root/coremark_llvm && /root/coremark_llvm
 #$ expect CoreMark
 #$ snapshot llvm-coremark
+#$ expect \$
+exit
 #$ expect \$
 kill "$HTTP_PID"
 #$ expect \$
