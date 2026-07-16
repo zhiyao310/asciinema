@@ -53,7 +53,7 @@ cargo build --locked
 ```
 还原测试环境：
 
-rm -rf coremark hello.c hello-gcc hello-llvm ruyi-0.50.0.riscv64 venv-gnu-ruyisdk-a210-sodimm-v2 venv-llvm-ruyisdk-a210-sodimm-v2
+rm -rf coremark hello.c hello-gcc hello-llvm ruyi-0.50.0.riscv64 venv-*
 
 
 ## 结果目录与图片命名

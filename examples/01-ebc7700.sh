@@ -36,7 +36,7 @@ cd coremark
 #$ expect \$
 make CC=riscv64-ruyisdk-linux-gnu-gcc XCFLAGS="-march=rv64gc_zba_zbb" compile
 #$ expect \$
-./coremark.exe
+mv coremark.exe coremark-gcc && ./coremark-gcc
 #$ expect CoreMark
 #$ snapshot gcc-coremark
 #$ expect \$
@@ -59,7 +59,7 @@ cd coremark && make clean
 #$ expect \$
 make CC=clang XCFLAGS="-march=rv64gc_zba_zbb" compile
 #$ expect \$
-./coremark.exe
+mv coremark.exe coremark-llvm && ./coremark-llvm
 #$ expect CoreMark
 #$ snapshot llvm-coremark
 #$ expect \$
