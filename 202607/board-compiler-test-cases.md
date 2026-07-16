@@ -286,7 +286,7 @@ LLVM测试：创建并激活LLVM虚拟环境，验证Clang版本，编译并运�
 
 | 序号  | 输入及操作说明                                                                                                                                                                                                                         | 期望测试结果          |
 | --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
-| 1   | 安装依赖包<br>sudo apt update; sudo apt install -y wget tar zstd xz-utils git build-essential                                                                                                              | 成功安装            |
+| 1   | 安装依赖包<br>sudo yum update -y<br>sudo yum install -y wget tar zstd xz git gcc gcc-c++ make | 成功安装            |
 | 2   | 安装ruyi包管理器<br>wget https://mirror.iscas.ac.cn/ruyisdk/ruyi/tags/0.50.0/ruyi-0.50.0.riscv64<br>chmod +x ./ruyi-0.50.0.riscv64<br>sudo cp -v ./ruyi-0.50.0.riscv64 /usr/local/bin/ruyi<br>ruyi version                            | 成功安装            |
 | 3   | 安装GCC和LLVM工具链<br>ruyi update<br>ruyi install gnu-ruyisdk (0.20260625.0)<br>ruyi install llvm-ruyisdk (22.1.8-ruyi.20260625)                                                                                                     | 成功安装            |
 | 4   | 创建并激活ruyi虚拟环境（GCC）<br>ruyi venv -t gnu-ruyisdk manual venv-gnu-ruyisdk-riscv-book<br>. venv-gnu-ruyisdk-riscv-book/bin/ruyi-activate                                                                                  | 成功创建并激活虚拟环境     |

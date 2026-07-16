@@ -3,6 +3,9 @@
 # RuyiSDK: 0.50.0; gnu-ruyisdk: 0.20260625.0; llvm-ruyisdk: 22.1.8-ruyi.20260625.
 
 #$ expect \$
+tio -b 115200 /dev/cu.usbserial-2130
+#$ send \n
+#$ expect \$
 cat /proc/cpuinfo
 #$ expect \$
 #$ snapshot device-cpuinfo
@@ -64,4 +67,8 @@ mv coremark.exe coremark-llvm && ./coremark-llvm
 #$ snapshot llvm-coremark
 #$ expect \$
 cd .. && ruyi-deactivate
+#$ expect \$
+
+#$ sendcontrol t
+#$ sendcharacter q
 #$ expect \$
