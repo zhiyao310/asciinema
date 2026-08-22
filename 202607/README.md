@@ -13,21 +13,21 @@ Word 版测试用例文档：[10种开发板+编译器测试用例.docx](10种�
 - `.mp4`：终端录制的视频
 - `snapshots/`：执行过程中截取的预期结果图片
 
-## 开发板与脚本
+## 开发板、脚本与测试环境照片
 
-| 用例 | 开发板 | 脚本 |
-| --- | --- | --- |
-| 1 | ESWIN EBC7700 | `examples/01-ebc7700.sh` |
-| 2 | HiFive Premier P550 | `examples/02-p550.sh` |
-| 3 | ESWIN EBC7702 | `examples/03-ebc7702.sh` |
-| 4 | SG2044 EVB | `examples/04-sg2044.sh` |
-| 5 | A210 SODIMM V2 | `examples/05-a210-v2.sh` |
-| 6 | VisionFive 2 Lite | `examples/06-vf2-lite.sh` |
-| 7 | Canaan K510 CRB-V1.2 KIT | `examples/07-k510.sh` |
-| 8 | Milk-V Megrez | `examples/08-megrez.sh` |
-| 9 | RISC-V Book | `examples/09-rvbook.sh` |
-| 10 | RISC-V Book 2 | `examples/10-rvbook2.sh` |
-| 11 | SpacemiT K3 Pico-ITX | `examples/11-k3.sh` |
+| 用例 | 开发板 | 脚本 | 测试环境照片 |
+| --- | --- | --- | --- |
+| 1 | ESWIN EBC7700 | `examples/01-ebc7700.sh` | — |
+| 2 | HiFive Premier P550 | `examples/02-p550.sh` | — |
+| 3 | ESWIN EBC7702 | `examples/03-ebc7702.sh` | — |
+| 4 | SG2044 EVB | `examples/04-sg2044.sh` | — |
+| 5 | A210 SODIMM V2 | `examples/05-a210-v2.sh` | [照片](boards_test_env_photos/5.a210-v2.jpg) |
+| 6 | VisionFive 2 Lite | `examples/06-vf2-lite.sh` | — |
+| 7 | Canaan K510 CRB-V1.2 KIT | `examples/07-k510.sh` | — |
+| 8 | Milk-V Megrez | `examples/08-megrez.sh` | — |
+| 9 | RISC-V Book | `examples/09-rvbook.sh` | [照片 1](boards_test_env_photos/9.ruyibook.jpg)、[照片 2](<boards_test_env_photos/9.ruyibook(2).jpg>) |
+| 10 | RISC-V Book 2 | `examples/10-rvbook2.sh` | [照片 1](boards_test_env_photos/10.rvbook2.jpg)、[照片 2](<boards_test_env_photos/10.rvbook2(2).jpg>) |
+| 11 | SpacemiT K3 Pico-ITX | `examples/11-k3.sh` | — |
 
 ## 运行
 
